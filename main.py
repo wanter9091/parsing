@@ -15,34 +15,40 @@ def get_cell_text(cell):
     return text
 
 def table_to_markdown(table_elem):
-    # Header(TH/TE/TD)에 P 포함 가능
+    # 설명행/단위행/헤더행 분리
+    description_lines = []
+    data_rows = []
     headers = []
-    for th in table_elem.findall('.//TH'):
-        headers.append(get_cell_text(th))
-    # 헤더가 없으면 첫 행에서 직접 추출 시도
-    if not headers:
-        first_tr = table_elem.find('.//TR')
-        if first_tr is not None:
-            for cell_tag in ['TH', 'TE', 'TD', 'TU']:
-                for td in first_tr.findall('.//' + cell_tag):
-                    headers.append(get_cell_text(td))
-    rows = []
-    if headers:
-        rows.append(headers)
-    # 모든 행 파싱
+    found_header = False
+
     for tr in table_elem.findall('.//TR'):
         row = []
         for cell_tag in ['TH', 'TE', 'TD', 'TU']:
             for td in tr.findall('.//' + cell_tag):
-                row.append(get_cell_text(td))
-        if row:
-            rows.append(row)
-    # 마크다운 변환
-    if not rows:
-        return ''
-    md = '| ' + ' | '.join(rows[0]) + ' |\n'
-    md += '|' + '|'.join(['---'] * len(rows[0])) + '|\n'
-    for row in rows[1:]:
+                cell_text = get_cell_text(td)
+                row.append(cell_text)
+        # 설명/단위/공백 등은 description으로 저장
+        if not found_header and (len(row) == 1 or all(not c for c in row)):
+            if any(row):
+                description_lines.append(' '.join(row))
+            continue
+        # 첫 헤더(컬럼명이 여러개 이상이면 헤더로 간주)
+        if not found_header and len(row) > 1:
+            headers = row
+            found_header = True
+            continue
+        # 데이터 행
+        if found_header and row:
+            data_rows.append(row)
+
+    # 마크다운 표 생성
+    md = ''
+    if description_lines:
+        md += '\n'.join(description_lines) + '\n\n'
+    if headers:
+        md += '| ' + ' | '.join(headers) + ' |\n'
+        md += '|' + '|'.join(['---'] * len(headers)) + '|\n'
+    for row in data_rows:
         md += '| ' + ' | '.join(row) + ' |\n'
     return md.strip()
 
