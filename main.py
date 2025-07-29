@@ -14,55 +14,87 @@ def get_cell_text(cell):
     text = text.replace('\xa0', ' ').replace('　', '').strip()
     return text
 
-def table_to_markdown(table_elem):
-    # 모든 행(row)을 무조건 2차원 배열로 수집 (설명, 헤더, 데이터 모두)
-    all_rows = []
+def table_xml_to_json(table_elem):
+    # 2차원 배열: 각 셀은 {'text': ..., 'colspan':..., 'rowspan':...}
+    rows = []
     for tr in table_elem.findall('.//TR'):
         row = []
         for cell_tag in ['TH', 'TE', 'TD', 'TU']:
-            for td in tr.findall('.//' + cell_tag):
+            for td in tr.findall(cell_tag):
                 cell_text = get_cell_text(td)
-                row.append(cell_text)
-        all_rows.append(row)
-    
-    # 컬럼수: 실제 데이터가 가장 많이 들어있는 행의 길이로 결정
-    max_cols = max((len(r) for r in all_rows if len(r) > 1), default=0)
+                colspan = int(td.get('COLSPAN', td.get('colspan', '1')))
+                rowspan = int(td.get('ROWSPAN', td.get('rowspan', '1')))
+                cell_info = {'text': cell_text, 'colspan': colspan, 'rowspan': rowspan}
+                row.append(cell_info)
+        if row:
+            rows.append(row)
+    return rows
 
-    # 데이터 행: 컬럼이 3개 이상인 행만 데이터/헤더 후보로 간주
-    data_candidate_rows = [r for r in all_rows if len(r) >= 3]
-    if not data_candidate_rows:
-        return ''  # 데이터 없는 빈 테이블 예외 처리
+def expand_table_json(json_rows):
+    # 실제 셀 배치대로 펼친 2차원 배열 생성 (병합셀은 동일값 반복)
+    max_row_count = len(json_rows)
+    # 우선 각 행마다 전체 칸수를 세야 함
+    # 병합 해제: 각 행의 colspan/rowspan 반영
+    result = []
+    filled = {}
+    for row_idx, row in enumerate(json_rows):
+        result_row = []
+        col_idx = 0
+        while len(result_row) < 100:  # 테이블 100칸 넘지 않는다고 가정
+            # 병합에 의해 채워져야 할 자리면 이전값 복사
+            if (row_idx, col_idx) in filled:
+                result_row.append(filled[(row_idx, col_idx)])
+                col_idx += 1
+                continue
+            # 행 데이터 끝났으면 break
+            if not row:
+                break
+            cell = row.pop(0)
+            # colspan, rowspan 반영
+            colspan, rowspan = cell['colspan'], cell['rowspan']
+            for cs in range(colspan):
+                result_row.append(cell['text'])
+                # rowspan 칸은 filled에 기록(향후 행에서 복사)
+                for rs in range(1, rowspan):
+                    filled[(row_idx + rs, col_idx)] = cell['text']
+                col_idx += 1
+            if not row:
+                break
+        # result_row가 데이터 없는 경우 skip하지 말고, 무조건 append
+        result.append(result_row)
+    # 마지막으로 max_cols로 padding
+    max_cols = max((len(r) for r in result), default=0)
+    result = [r + [''] * (max_cols - len(r)) for r in result]
+    return result
 
-    # 헤더: 마지막 컬럼이 3개 이상인 행을 컬럼명으로 (보통 회계표 마지막 헤더행)
-    header_row = data_candidate_rows[0]
-    data_rows = data_candidate_rows[1:]
-
-    # 혹시 데이터가 1행만 있으면 header/data 재정의
-    if len(data_rows) == 0 and len(data_candidate_rows) > 1:
-        header_row = data_candidate_rows[-2]
-        data_rows = [data_candidate_rows[-1]]
-    elif len(data_rows) == 0:
-        # (실데이터가 한줄 뿐인 테이블, 예외적으로 처리)
-        data_rows = []
-
-    # 설명/단위/공백 등은 모두 그 앞쪽(all_rows에서 컬럼이 3개 미만인 행)에서 추출
-    description_lines = [' '.join(r) for r in all_rows if len(r) < 3 and any(r)]
-
-    # 각 행을 max_cols 기준으로 패딩
-    def pad(row): return row + [''] * (max_cols - len(row))
-    header_row = pad(header_row)
-    data_rows = [pad(r) for r in data_rows]
-
-    # 마크다운 표 생성
+def array_to_markdown(rows):
+    # 설명/단위/공백 등 분리, 나머지는 표로
+    description = []
+    data_rows = []
+    for r in rows:
+        if len(r) < 2 or all(not v for v in r):
+            if any(r):
+                description.append(' '.join(r))
+        else:
+            data_rows.append(r)
+    if not data_rows:
+        return ''
+    # 헤더=첫 행
+    header = data_rows[0]
+    data = data_rows[1:]
     md = ''
-    if description_lines:
-        md += '\n'.join(description_lines) + '\n\n'
-    md += '| ' + ' | '.join(header_row) + ' |\n'
-    md += '|' + '|'.join(['---'] * len(header_row)) + '|\n'
-    for row in data_rows:
+    if description:
+        md += '\n'.join(description) + '\n\n'
+    md += '| ' + ' | '.join(header) + ' |\n'
+    md += '|' + '|'.join(['---'] * len(header)) + '|\n'
+    for row in data:
         md += '| ' + ' | '.join(row) + ' |\n'
     return md.strip()
 
+def table_to_markdown(table_elem):
+    json_rows = table_xml_to_json(table_elem)
+    array_rows = expand_table_json(json_rows)
+    return array_to_markdown(array_rows)
 
 def replace_tables_with_markdown(xml_str):
     parser = etree.XMLParser(recover=True)
