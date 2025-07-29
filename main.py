@@ -2,6 +2,9 @@ import re
 from lxml import etree
 
 def preprocess_xml(file_path):
+    '''
+        XML 파일읽고, 텍스트 중, xml 태그패턴 정규화
+    '''
     with open(file_path, 'r', encoding='utf-8') as f:
         xml_str = f.read()
     # 태그로 오인될 수 있는 한글 <xxx> 패턴 치환
