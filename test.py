@@ -1,6 +1,7 @@
-xml_file = '20240430000817.xml'
+import aspose.cells
+from aspose.cells import Workbook
+# utf-8 인코딩으로 XML 파일을 읽고, 테이블을 마크다운으로 변환하는 스크립트
+import re
+workbook = Workbook("20240430000817.xml")
 
-with open(xml_file, encoding='utf-8') as f:
-    for i, line in enumerate(f, start=1):
-        if 5600 <= i <= 5610:
-            print(f"{i:>5}: {line.rstrip()}")
+workbook.save("20240430000817.md")
