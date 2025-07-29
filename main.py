@@ -15,42 +15,54 @@ def get_cell_text(cell):
     return text
 
 def table_to_markdown(table_elem):
-    # 설명행/단위행/헤더행 분리
-    description_lines = []
-    data_rows = []
-    headers = []
-    found_header = False
-
+    # 모든 행(row)을 무조건 2차원 배열로 수집 (설명, 헤더, 데이터 모두)
+    all_rows = []
     for tr in table_elem.findall('.//TR'):
         row = []
         for cell_tag in ['TH', 'TE', 'TD', 'TU']:
             for td in tr.findall('.//' + cell_tag):
                 cell_text = get_cell_text(td)
                 row.append(cell_text)
-        # 설명/단위/공백 등은 description으로 저장
-        if not found_header and (len(row) == 1 or all(not c for c in row)):
-            if any(row):
-                description_lines.append(' '.join(row))
-            continue
-        # 첫 헤더(컬럼명이 여러개 이상이면 헤더로 간주)
-        if not found_header and len(row) > 1:
-            headers = row
-            found_header = True
-            continue
-        # 데이터 행
-        if found_header and row:
-            data_rows.append(row)
+        all_rows.append(row)
+    
+    # 컬럼수: 실제 데이터가 가장 많이 들어있는 행의 길이로 결정
+    max_cols = max((len(r) for r in all_rows if len(r) > 1), default=0)
+
+    # 데이터 행: 컬럼이 3개 이상인 행만 데이터/헤더 후보로 간주
+    data_candidate_rows = [r for r in all_rows if len(r) >= 3]
+    if not data_candidate_rows:
+        return ''  # 데이터 없는 빈 테이블 예외 처리
+
+    # 헤더: 마지막 컬럼이 3개 이상인 행을 컬럼명으로 (보통 회계표 마지막 헤더행)
+    header_row = data_candidate_rows[0]
+    data_rows = data_candidate_rows[1:]
+
+    # 혹시 데이터가 1행만 있으면 header/data 재정의
+    if len(data_rows) == 0 and len(data_candidate_rows) > 1:
+        header_row = data_candidate_rows[-2]
+        data_rows = [data_candidate_rows[-1]]
+    elif len(data_rows) == 0:
+        # (실데이터가 한줄 뿐인 테이블, 예외적으로 처리)
+        data_rows = []
+
+    # 설명/단위/공백 등은 모두 그 앞쪽(all_rows에서 컬럼이 3개 미만인 행)에서 추출
+    description_lines = [' '.join(r) for r in all_rows if len(r) < 3 and any(r)]
+
+    # 각 행을 max_cols 기준으로 패딩
+    def pad(row): return row + [''] * (max_cols - len(row))
+    header_row = pad(header_row)
+    data_rows = [pad(r) for r in data_rows]
 
     # 마크다운 표 생성
     md = ''
     if description_lines:
         md += '\n'.join(description_lines) + '\n\n'
-    if headers:
-        md += '| ' + ' | '.join(headers) + ' |\n'
-        md += '|' + '|'.join(['---'] * len(headers)) + '|\n'
+    md += '| ' + ' | '.join(header_row) + ' |\n'
+    md += '|' + '|'.join(['---'] * len(header_row)) + '|\n'
     for row in data_rows:
         md += '| ' + ' | '.join(row) + ' |\n'
     return md.strip()
+
 
 def replace_tables_with_markdown(xml_str):
     parser = etree.XMLParser(recover=True)
