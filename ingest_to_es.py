@@ -227,10 +227,9 @@ def generate_actions(data_dir):
     """
     주어진 디렉터리 경로를 순회하며 XML 파일을 파싱하고
     Elasticsearch bulk API를 위한 액션 제너레이터를 반환합니다.
-    (각 폴더별로 10개씩만 처리)
     """
     root_dirs = ["1분기", "3분기", "반기", "사업", "증권"]
-    
+
     for folder_name in root_dirs:
         full_dir_path = os.path.join(data_dir, folder_name)
         if not os.path.isdir(full_dir_path):
@@ -238,39 +237,33 @@ def generate_actions(data_dir):
             continue
 
         print(f"Processing directory: {full_dir_path}")
-        
-        file_count = 0  # 각 폴더별 파일 카운터 초기화
-        
+
         # os.walk를 사용하여 하위 폴더와 파일 모두 탐색
         for root, dirs, files in os.walk(full_dir_path):
-            if file_count >= 10:
-                print(f"Reached file limit (10) for folder: {folder_name}. Skipping remaining files.")
-                break # 이 폴더에 대한 탐색 중단
-
             for file_name in files:
-                if file_count >= 10:
-                    break # 이 폴더에 대한 파일 루프 중단
-
                 if file_name.endswith(".xml"):
                     file_path = os.path.join(root, file_name)
                     doc_id = os.path.splitext(file_name)[0]
-                    
+
                     # 'doc_id/doc_id.xml' 형태의 파일만 처리
-                    # 테스트를 위해 모든 xml 파일을 처리하도록 주석 처리함
-                    # if os.path.basename(root) != doc_id or file_name != f"{doc_id}.xml":
-                    #     print(f"Skipping non-primary XML file: {file_path}")
-                    #     continue
+                    if os.path.basename(root) != doc_id or file_name != f"{doc_id}.xml":
+                        print(f"Skipping non-primary XML file: {file_path}")
+                        # doc_id 폴더 안에 있는 추가 xml 파일을 처리하고 싶다면, 이 부분을 수정하세요
+                        # 예를 들어, doc_id가 아닌 다른 이름의 xml 파일을 처리하는 로직을 추가할 수 있습니다.
+                        # continue
+                        # 임시로 이 부분은 주석처리하여 모든 xml파일을 파싱하도록 합니다.
+                        pass
 
                     try:
                         with codecs.open(file_path, "r", encoding="utf-8") as f:
                             xml_content = f.read()
-                        
+
                         parsed_data = parse_darter_xml(xml_content, file_name)
-                        
+
                         if parsed_data:
                             doc_code = parsed_data.get("doc_code", "99999")
                             target_index = DOC_CODE_INDEX_MAP.get(doc_code, "rpt_other")
-                            
+
                             # Bulk API를 위한 액션 생성
                             action = {
                                 "_index": target_index,
@@ -278,12 +271,10 @@ def generate_actions(data_dir):
                                 "_source": parsed_data,
                             }
                             yield action
-                            file_count += 1 # 성공적으로 파싱한 파일만 카운트
 
                     except Exception as e:
                         print(f"Error processing file {file_path}: {e}")
                         continue
-    print("All folders have been processed up to the file limit.")
 
 
 def main():
