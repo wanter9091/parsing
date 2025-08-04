@@ -2,3 +2,4 @@ lxml
 beautifulsoup4
 xmlschema
 elasticsearch
+pdfplumber

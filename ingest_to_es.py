@@ -3,7 +3,7 @@
 import os
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
-from parse_1q import parse_darter_xml  # 제공된 파싱 스크립트 모듈 임포트
+from parse_xml import parse_darter_xml  # 제공된 파싱 스크립트 모듈 임포트
 import json
 import codecs
 
@@ -237,33 +237,38 @@ def generate_actions(data_dir):
             continue
 
         print(f"Processing directory: {full_dir_path}")
+        file_count = 0  # 각 폴더별 파일 카운터 초기화
 
         # os.walk를 사용하여 하위 폴더와 파일 모두 탐색
         for root, dirs, files in os.walk(full_dir_path):
+            if file_count >= 10:
+                print(f"Reached file limit (10) for folder: {folder_name}. Skipping remaining files.")
+                break # 이 폴더에 대한 탐색 중단
+
             for file_name in files:
+                if file_count >= 10:
+                    break # 이 폴더에 대한 파일 루프 중단
+
                 if file_name.endswith(".xml"):
                     file_path = os.path.join(root, file_name)
                     doc_id = os.path.splitext(file_name)[0]
-
+                    
                     # 'doc_id/doc_id.xml' 형태의 파일만 처리
-                    if os.path.basename(root) != doc_id or file_name != f"{doc_id}.xml":
-                        print(f"Skipping non-primary XML file: {file_path}")
-                        # doc_id 폴더 안에 있는 추가 xml 파일을 처리하고 싶다면, 이 부분을 수정하세요
-                        # 예를 들어, doc_id가 아닌 다른 이름의 xml 파일을 처리하는 로직을 추가할 수 있습니다.
-                        # continue
-                        # 임시로 이 부분은 주석처리하여 모든 xml파일을 파싱하도록 합니다.
-                        pass
+                    # 테스트를 위해 모든 xml 파일을 처리하도록 주석 처리함
+                    # if os.path.basename(root) != doc_id or file_name != f"{doc_id}.xml":
+                    #     print(f"Skipping non-primary XML file: {file_path}")
+                    #     continue
 
                     try:
                         with codecs.open(file_path, "r", encoding="utf-8") as f:
                             xml_content = f.read()
-
+                        
                         parsed_data = parse_darter_xml(xml_content, file_name)
-
+                        
                         if parsed_data:
                             doc_code = parsed_data.get("doc_code", "99999")
                             target_index = DOC_CODE_INDEX_MAP.get(doc_code, "rpt_other")
-
+                            
                             # Bulk API를 위한 액션 생성
                             action = {
                                 "_index": target_index,
@@ -271,11 +276,12 @@ def generate_actions(data_dir):
                                 "_source": parsed_data,
                             }
                             yield action
+                            file_count += 1 # 성공적으로 파싱한 파일만 카운트
 
                     except Exception as e:
                         print(f"Error processing file {file_path}: {e}")
                         continue
-
+    print("All folders have been processed up to the file limit.")
 
 def main():
     """
@@ -293,11 +299,18 @@ def main():
     # 3. Bulk API를 사용하여 데이터 주입
     print("Starting data ingestion using bulk API...")
     try:
-        success, failed = bulk(es, generate_actions(data_raw_path), stats_only=True)
+        # chunk_size를 사용하여 요청을 나눕니다.
+        # 적절한 값은 데이터 크기에 따라 다르지만, 100~1000 사이의 값으로 시작해볼 수 있습니다.
+        # max_bytes를 사용하여 바이트 단위로도 제한할 수 있습니다.
+        success, failed = bulk(
+            es, 
+            generate_actions(data_raw_path),
+            chunk_size=500,  # 한 번에 500개의 문서씩 전송
+            stats_only=True
+        )
         print(f"Bulk ingestion completed. Succeeded: {success}, Failed: {failed}")
     except Exception as e:
         print(f"An error occurred during bulk ingestion: {e}")
-
 
 if __name__ == "__main__":
     main()
