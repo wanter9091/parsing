@@ -1,5 +1,7 @@
+/__pycache__
 /.env
 /myenv
 /report
 /standard
 /templete
+*.xml

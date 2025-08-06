@@ -11,8 +11,6 @@ import codecs
 ES_HOSTS = ["http://localhost:9200"]  # ElasticSearch 서버 URL 및 포트
 es = Elasticsearch(hosts=ES_HOSTS)
 
-# doc_code와 인덱스명을 짝짓는 더미 딕셔너리
-# 실제 doc_code에 따라 이 부분을 채워주세요.
 DOC_CODE_INDEX_MAP = {
     "11013": "rpt_qt",  # 분기보고서 (1분기, 3분기)
     "11012": "rpt_half",  # 반기보고서
@@ -23,8 +21,6 @@ DOC_CODE_INDEX_MAP = {
 }
 
 # 인덱스별 매핑 설정 (제공된 예시를 기반으로 수정)
-# 여기서는 모든 인덱스가 동일한 매핑을 사용한다고 가정합니다.
-# 만약 각 인덱스별로 다른 매핑을 사용하고 싶다면, 아래 딕셔너리를 확장하여 사용하세요.
 INDEX_MAPPINGS = {
     "rpt_qt": {
         "settings": {
