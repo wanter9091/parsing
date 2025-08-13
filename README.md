@@ -40,9 +40,9 @@ python ingest_to_os_from_xml.py
 ---
 
 # 데이터 확인
-`localhost:5601` 접속 -> 좌측 메뉴탭 -> 맨 아래 `Dev Tools`
-아래 스크립트 복붙해서 원하는 부분에 `Ctrl + Enter`
-
+>`localhost:5601` 접속 -> 좌측 메뉴탭 -> 맨 아래 `Dev Tools`
+>아래 스크립트 복붙해서 원하는 부분에 `Ctrl + Enter`
+>`Postman`으로도 가능
 ```
 GET /rpt_other/_search
 {
