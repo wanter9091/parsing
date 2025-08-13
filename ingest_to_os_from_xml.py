@@ -216,18 +216,18 @@ def create_indices():
 
 def generate_actions(data_dir):
     """디렉터리 하위 XML들을 파싱하고 bulk 액션 생성"""
-    root_dirs = ["1분기", "3분기", "반기", "사업", "증권"]
+    root_dirs = ["분기", "반기", "사업", "증권"]
 
-    for folder_name in root_dirs:
-        full_dir_path = os.path.join(data_dir, folder_name)
-        if not os.path.isdir(full_dir_path):
+    for folder_name in root_dirs: # 종류별로 시도
+        full_dir_path = os.path.join(data_dir, folder_name) #경로를 data_dir/보고서종류로 설정
+        if not os.path.isdir(full_dir_path): # 존재하지않으면
             print(f"Directory not found: {full_dir_path}")
             continue
 
         print(f"Processing directory: {full_dir_path}")
         file_count = 0
 
-        for root, dirs, files in os.walk(full_dir_path):
+        for root, dirs, files in os.walk(full_dir_path): # 해당 경로에 있는 파일 작업 시작
             if file_count >= 10:
                 print(f"Reached file limit (10) for folder: {folder_name}. Skipping remaining files.")
                 break
@@ -237,7 +237,7 @@ def generate_actions(data_dir):
                     break
 
                 if file_name.endswith(".xml"):
-                    file_path = os.path.join(root, file_name)
+                    file_path = os.path.join(root, file_name) # 해당 경로의 해당 파일로 설정
 
                     try:
                         with codecs.open(file_path, "r", encoding="utf-8") as f:
@@ -263,7 +263,7 @@ def generate_actions(data_dir):
 def main():
     create_indices()
 
-    data_raw_path = "./report"
+    data_raw_path = "C:/01571107"
     if not os.path.isdir(data_raw_path):
         print(f"Error: The directory '{data_raw_path}' does not exist.")
         return
