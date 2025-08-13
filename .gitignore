@@ -5,3 +5,4 @@
 /standard
 /templete
 *.xml
+.env

@@ -1,30 +1,36 @@
-import os
-from elasticsearch import Elasticsearch
-from elasticsearch.helpers import bulk
-from parse_pdf import parse_pdf
-import json
-import codecs
+# ingest_to_os_from_pdf.py
 
-# ElasticSearch 접속 정보
-ES_HOSTS = ["http://localhost:9200"] 
-es = Elasticsearch(hosts=ES_HOSTS)
+import os
+from opensearchpy import OpenSearch
+from opensearchpy.helpers import bulk
+from parse_pdf import parse_pdf
+
+# OpenSearch 접속 정보
+OS_HOSTS = ["http://localhost:9200"]
+os_client = OpenSearch(
+    hosts=OS_HOSTS,
+    http_compress=True,
+    retry_on_timeout=True,
+    max_retries=3,
+    request_timeout=60,
+)
+
 # 인덱스 매핑 정의
 INDEX_MAPPINGS = {
     "standard": {
         "mappings": {
             "properties": {
-                "chap_id": {"type": "keyword"},
+                "chap_id":   {"type": "keyword"},
                 "chap_name": {"type": "keyword"},
-                "sec_id": {"type": "keyword"},
-                "sec_name": {"type": "keyword"},
-                "art_id": {"type": "keyword"},
-                "art_name": {"type": "keyword"},
-                "content": {"type": "text"},
+                "sec_id":    {"type": "keyword"},
+                "sec_name":  {"type": "keyword"},
+                "art_id":    {"type": "keyword"},
+                "art_name":  {"type": "keyword"},
+                "content":   {"type": "text"},
             },
         },
     },
 }
-
 
 def create_indices():
     """
@@ -32,10 +38,8 @@ def create_indices():
     이미 존재하면 무시합니다.
     """
     for index_name, mapping in INDEX_MAPPINGS.items():
-        if not es.indices.exists(index=index_name):
+        if not os_client.indices.exists(index=index_name):
             print(f"Creating index '{index_name}' with mapping...")
-
-            # settings와 mappings를 분리하여 body를 구성
             body = {
                 "settings": {
                     "number_of_shards": 1,
@@ -44,14 +48,13 @@ def create_indices():
                 },
                 "mappings": mapping.get("mappings", {}),
             }
-
-            es.indices.create(index=index_name, body=body)
+            os_client.indices.create(index=index_name, body=body)
         else:
             print(f"Index '{index_name}' already exists.")
 
 def generate_actions(index_name, parsed_data):
     """
-    벌크 인서트에 필요한 액션 리스트를 생성합니다.
+    벌크 인서트에 필요한 액션 제너레이터를 생성합니다.
     """
     for doc in parsed_data:
         yield {
@@ -61,33 +64,36 @@ def generate_actions(index_name, parsed_data):
 
 def ingest_documents(index_name, documents):
     """
-    파싱된 문서를 ElasticSearch에 bulk API를 이용해 인제스트합니다.
+    파싱된 문서를 OpenSearch에 bulk API로 인제스트합니다.
     """
     if not documents:
         print("No documents to ingest.")
         return
-        
-    print(f"{len(documents)} documents to ingest into '{index_name}'...")
-    success, failed = bulk(es, generate_actions(index_name, documents))
-    
-    if success:
-        print(f"Successfully ingested {success} documents.")
-    if failed:
-        print(f"Failed to ingest {len(failed)} documents. First error: {failed[0]['index']['error']['reason']}")
 
+    print(f"{len(documents)} documents to ingest into '{index_name}'...")
+    # bulk()는 (성공개수, 에러목록) 튜플을 반환합니다.
+    success, errors = bulk(
+        os_client,
+        generate_actions(index_name, documents),
+        refresh=False,            # 필요 시 True
+        request_timeout=60,
+    )
+    print(f"Successfully ingested {success} documents.")
+    if errors:
+        # errors는 per-item 에러 목록
+        print(f"Failed to ingest {len(errors)} documents. First error: {errors[0]}")
 
 if __name__ == "__main__":
     create_indices()
-    
+
     # 파싱할 PDF 파일 경로 설정
     pdf_file_path = "./standard/(붙임4) 기업공시서식 작성기준(2025.6.30. 시행).pdf"
-    
+
     if os.path.exists(pdf_file_path):
         print(f"Parsing PDF file: {pdf_file_path}")
         parsed_result = parse_pdf(pdf_file_path)
-        
+
         if parsed_result:
-            # 파싱된 결과를 ElasticSearch에 인제스트
             ingest_documents("standard", parsed_result)
         else:
             print("No data parsed from the PDF.")

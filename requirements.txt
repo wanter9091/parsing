@@ -1,5 +1,5 @@
 lxml
 beautifulsoup4
 xmlschema
-elasticsearch
+opensearch-py==3.0.0
 pdfplumber
