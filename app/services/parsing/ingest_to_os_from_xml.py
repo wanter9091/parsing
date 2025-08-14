@@ -3,7 +3,7 @@
 import os
 from opensearchpy import OpenSearch
 from opensearchpy.helpers import bulk
-from parse_xml import parse_darter_xml
+from .parse_xml import parse_darter_xml
 import codecs
 
 # OpenSearch 접속 정보

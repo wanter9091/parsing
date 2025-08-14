@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from app.services.dart_service import test_service
 from ..opensearch_client import client
 
 router = APIRouter()
@@ -10,6 +12,9 @@ class Document(BaseModel):
     id: str
     title: str
     content: str
+# 보고서 리스트 가져오고 넘기기 
+#그걸로 api 전부 가져오기
+# 오픈 서치에 넣기
 
 @router.post("/index")
 def index_document(doc: Document):
@@ -33,3 +38,7 @@ def search_documents(q: str):
     response = client.search(index=INDEX_NAME, body=query)
     hits = [hit["_source"] for hit in response["hits"]["hits"]]
     return {"hits": hits}
+
+@router.get("/test")
+def test():
+    return test_service()

@@ -1,0 +1,83 @@
+from pydantic import BaseModel, Field, conint
+from typing import List, Optional
+import json
+from dataclasses import dataclass
+import requests
+
+#압축해제용
+import zipfile
+import io
+
+# 개별 보고서에 대한 모델
+class Report(BaseModel):
+    rm: str
+    corp_code: str
+    corp_name: str
+    stock_code: Optional[str] = Field(None)  # stock_code는 없을 수도 있으므로 Optional
+    corp_cls: str
+    report_nm: str
+    rcept_no: str
+    flr_nm: str
+    rcept_dt: str
+
+# 전체 응답 구조에 대한 모델
+class ReportListResponse(BaseModel):
+    status: str
+    message: str
+    list: List[Report] = Field(..., alias="list")
+    page_no: conint(ge=1)  # 1 이상의 정수
+    page_count: int
+    total_count: int
+    total_page: int
+
+# 내 기업코드로 api에서 보고서 리스트 가져오기
+def fetch_report_data_with_pydantic(code:str): # 테스트용 "01571107"
+    # 파이썬 f-string 문법으로 수정
+    url = f"http://localhost:8080/api/dart/test?corp_code={code}"
+    response = requests.get(url)
+    response.raise_for_status()
+    
+    json_data = response.json()
+    
+    # Pydantic 모델을 사용하여 JSON 데이터를 객체로 변환하고 유효성을 검증
+    return ReportListResponse(**json_data)
+
+# 접수번호로 파일 다운로드(크롬이 아니라 .zip으로 받음)
+def rept_down_by_list(rcept_no: str):
+    
+    """접수번호로 파일 다운로드"""
+    url = f"https://opendart.fss.or.kr/api/document.xml?crtfc_key=4726810cd40e580c803eb6966f1677df83556317&rcept_no={rcept_no}"
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.content
+
+# 압축 해제 기능
+def extract_zip_file(zip_data):
+    """압축 파일을 해제하고 파일 목록을 반환"""
+    xml_contents = []
+    try:
+        zip_buffer = io.BytesIO(zip_data)
+        with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
+            for file_name in zip_file.namelist():
+                    # 파일 확장자가 '.xml'인 경우에만 처리
+                    if file_name.endswith('.xml'):
+                        with zip_file.open(file_name) as xml_file:
+                            try:
+                                # 파일을 읽고 UTF-8로 디코딩
+                                xml_content = xml_file.read().decode('utf-8')
+                                xml_contents.append(xml_content)
+                            except UnicodeDecodeError:
+                                # 디코딩 실패 시 다른 인코딩을 시도하거나 건너뜁니다.
+                                print(f"경고: {file_name} 파일을 UTF-8로 디코딩할 수 없습니다. 건너뜁니다.")
+                                continue
+        return xml_contents
+    except zipfile.BadZipFile:
+        print("잘못된 ZIP 파일 형식입니다. 바이너리 데이터가 손상되었을 수 있습니다.")
+        return []
+
+def test_service():
+    file=rept_down_by_list("20250320900758")
+    unzip_file=extract_zip_file(file)
+    print(unzip_file)
+    return unzip_file
+
