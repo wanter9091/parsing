@@ -6,6 +6,8 @@ from opensearchpy.helpers import bulk
 from .parse_xml import parse_darter_xml
 import codecs
 
+from typing import Dict, Any, Generator
+
 # OpenSearch 접속 정보
 OS_HOSTS = ["http://localhost:9200"]  # OpenSearch 노드 URL
 os_client = OpenSearch(
@@ -259,6 +261,39 @@ def generate_actions(data_dir):
                         print(f"Error processing file {file_path}: {e}")
                         continue
     print("All folders have been processed up to the file limit.")
+
+# 하나만 파싱해서 오픈서치에 넣기
+def one_parse_xml(file_dict: Dict[str, Any]) -> Generator[Dict[str, Any], None, None]:
+    try:
+        # 딕셔너리 키에 안전하게 접근합니다.
+        xml_content = file_dict.get("content")
+        rcept_no = file_dict.get("rcept_no")
+        
+        # 필수 키가 없는 경우 바로 에러 로그를 출력하고 종료
+        if not xml_content or not rcept_no:
+            print("Error: Missing 'content' or 'rcept_no' in input dictionary.")
+            return
+
+        # XML 파싱
+        parsed_data = parse_darter_xml(xml_content, rcept_no)
+        
+        # 파싱된 데이터가 유효한지 확인
+        if parsed_data and parsed_data.get("doc_id"):
+            doc_code = parsed_data.get("doc_code", "99999")
+            target_index = DOC_CODE_INDEX_MAP.get(doc_code, "rpt_other")
+
+            # OpenSearch에 보낼 데이터를 yield
+            yield {
+                "_index": target_index,
+                "_id": parsed_data["doc_id"],
+                "_source": parsed_data,
+            }
+        else:
+            print(f"Warning: No valid data or doc_id parsed from rcept_no '{rcept_no}'.")
+    
+    except Exception as e:
+        print(f"Critical Error during XML parsing for rcept_no '{rcept_no}': {e}")
+
 
 def main():
     create_indices()

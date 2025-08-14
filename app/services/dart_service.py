@@ -7,6 +7,26 @@ import requests
 #압축해제용
 import zipfile
 import io
+from typing import Dict
+
+# OpenSearch 클라이언트
+from opensearchpy.helpers import bulk
+from opensearchpy import OpenSearch
+
+from app.services.parsing.ingest_to_os_from_xml import one_parse_xml
+
+
+
+# OpenSearch 접속 정보
+OS_HOSTS = ["http://localhost:9200"]  # OpenSearch 노드 URL
+os_client = OpenSearch(
+    hosts=OS_HOSTS,
+    http_compress=True,
+    retry_on_timeout=True,
+    max_retries=3,
+    request_timeout=60,
+)
+
 
 # 개별 보고서에 대한 모델
 class Report(BaseModel):
@@ -52,32 +72,51 @@ def rept_down_by_list(rcept_no: str):
     return response.content
 
 # 압축 해제 기능
-def extract_zip_file(zip_data):
-    """압축 파일을 해제하고 파일 목록을 반환"""
-    xml_contents = []
+def extract_zip_file_to_dict(zip_data: bytes) -> Dict[str, str]:
+    """
+    압축 파일을 해제하고 XML 파일의 이름과 내용을 딕셔너리로 반환합니다.
+    { "파일_이름": "XML_내용", ... } 형식입니다.
+    """
+    xml_files_dict = {}
+    
     try:
         zip_buffer = io.BytesIO(zip_data)
         with zipfile.ZipFile(zip_buffer, 'r') as zip_file:
             for file_name in zip_file.namelist():
-                    # 파일 확장자가 '.xml'인 경우에만 처리
-                    if file_name.endswith('.xml'):
-                        with zip_file.open(file_name) as xml_file:
-                            try:
-                                # 파일을 읽고 UTF-8로 디코딩
-                                xml_content = xml_file.read().decode('utf-8')
-                                xml_contents.append(xml_content)
-                            except UnicodeDecodeError:
-                                # 디코딩 실패 시 다른 인코딩을 시도하거나 건너뜁니다.
-                                print(f"경고: {file_name} 파일을 UTF-8로 디코딩할 수 없습니다. 건너뜁니다.")
-                                continue
-        return xml_contents
+                # 파일 확장자가 '.xml'인 경우에만 처리
+                if file_name.endswith('.xml'):
+                    with zip_file.open(file_name) as xml_file:
+                        try:
+                            # 파일을 읽고 UTF-8로 디코딩
+                            xml_content = xml_file.read().decode('utf-8')
+                            # 딕셔너리에 파일명을 키로, 내용을 값으로 추가
+                            xml_files_dict["rcept_no"] = file_name
+                            xml_files_dict["content"] = xml_content
+                        except UnicodeDecodeError:
+                            print(f"경고: {file_name} 파일을 UTF-8로 디코딩할 수 없습니다. 건너뜁니다.")
+                            continue
+            
+            return xml_files_dict
+
     except zipfile.BadZipFile:
         print("잘못된 ZIP 파일 형식입니다. 바이너리 데이터가 손상되었을 수 있습니다.")
-        return []
+        return {}
 
 def test_service():
     file=rept_down_by_list("20250320900758")
-    unzip_file=extract_zip_file(file)
+    unzip_file=extract_zip_file_to_dict(file)
     print(unzip_file)
+    
+    try:
+        success, failed = bulk(
+            os_client,
+            one_parse_xml(unzip_file),
+            chunk_size=500,
+            stats_only=True
+        )
+        print(f"Bulk ingestion completed. Succeeded: {success}, Failed: {failed}")
+    except Exception as e:
+        print(f"An error occurred during bulk ingestion: {e}")
+    
     return unzip_file
 
