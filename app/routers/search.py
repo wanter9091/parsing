@@ -39,6 +39,6 @@ def search_documents(q: str):
     hits = [hit["_source"] for hit in response["hits"]["hits"]]
     return {"hits": hits}
 
-@router.get("/test")
-def test():
-    return test_service()
+@router.get("/test/{corp_code}")
+def test(corp_code: str):
+    return test_service(corp_code)
