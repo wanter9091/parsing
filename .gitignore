@@ -6,3 +6,4 @@
 /templete
 *.xml
 .env
+myenv/
