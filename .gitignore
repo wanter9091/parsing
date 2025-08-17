@@ -7,3 +7,4 @@
 *.xml
 .env
 myenv/
+__pycache__/
