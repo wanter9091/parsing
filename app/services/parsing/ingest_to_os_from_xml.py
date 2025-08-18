@@ -19,10 +19,12 @@ os_client = OpenSearch(
 )
 
 DOC_CODE_INDEX_MAP = {
-    "11013": "rpt_qt",
-    "11012": "rpt_half",
-    "11011": "rpt_biz",
-    "10001": "rpt_sec_eq",
+    "11013": "rpt_qt", # 분기보고서
+    "11012": "rpt_half", # 반기보고서
+    "11011": "rpt_biz", # 사업보고서
+    "10001": "rpt_sec_eq", # 이건뭐지?
+    "00760": "rpt_ad", # 감사보고서
+    "00761": "rpt_ad_con", # 감사보고서(연결)
     "99999": "rpt_other",
 }
 

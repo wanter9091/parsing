@@ -16,6 +16,9 @@
 ```
 ---
 
+# 서버 실행
+uvicorn app.main:app --reload
+
 # 환경구성
 ```
 # 가상환경 생성
