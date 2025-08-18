@@ -7,6 +7,11 @@ class Settings(BaseSettings):
     OPENSEARCH_PASSWORD: str = "admin"
     OPENSEARCH_SCHEME: str = "http"
 
+    OS_HOST : str
+    MY_API_BASE_URL : str
+    MY_API_CORE_REPORTS : str
+    DART_API_KEY : str
+    
     class Config:
         env_file = ".env"
 

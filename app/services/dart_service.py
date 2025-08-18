@@ -15,12 +15,20 @@ from opensearchpy import OpenSearch
 
 from app.services.parsing.ingest_to_os_from_xml import one_parse_xml
 
+# 환경변수 설정
+from app.config import settings
+OS_HOST = settings.OS_HOST
+MY_API_BASE_URL = settings.MY_API_BASE_URL
+MY_API_CORE_REPORTS = settings.MY_API_CORE_REPORTS
+DART_API_KEY = settings.DART_API_KEY
+
+
+
 
 
 # OpenSearch 접속 정보
-OS_HOSTS = ["http://localhost:9200"]  # OpenSearch 노드 URL
 os_client = OpenSearch(
-    hosts=OS_HOSTS,
+    hosts=OS_HOST,# OpenSearch 노드 URL
     http_compress=True,
     retry_on_timeout=True,
     max_retries=3,
@@ -53,7 +61,7 @@ class ReportListResponse(BaseModel):
 # 내 기업코드로 api에서 보고서 리스트 가져오기(json형태 안에 있음)
 def fetch_report_data_with_pydantic(code:str): # 테스트용 "01571107"
     # 파이썬 f-string 문법으로 수정
-    url = f"http://localhost:8080/api/dart/reports/core?corp_code={code}"
+    url = MY_API_CORE_REPORTS+f"{code}"
     response = requests.get(url)
     response.raise_for_status()
     
@@ -135,7 +143,7 @@ def fetch_report_data_with_pydantic(code:str): # 테스트용 "01571107"
 def rept_down_by_list(rcept_no: str):
     
     """접수번호로 파일 다운로드"""
-    url = f"https://opendart.fss.or.kr/api/document.xml?crtfc_key=4726810cd40e580c803eb6966f1677df83556317&rcept_no={rcept_no}"
+    url = f"https://opendart.fss.or.kr/api/document.xml?crtfc_key={DART_API_KEY}&rcept_no={rcept_no}"
     response = requests.get(url)
     response.raise_for_status()
     return response.content

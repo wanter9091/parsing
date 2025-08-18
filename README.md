@@ -19,6 +19,8 @@
 # 서버 실행
 uvicorn app.main:app --reload
 
+---
+
 # 환경구성
 ```
 # 가상환경 생성
@@ -30,6 +32,11 @@ python -m venv {가상환경명}
 # 라이브러리 설치
 pip install -r requirements.txt
 ```
+---
+
+# requirements 갱신
+pip freeze > requirements.txt
+
 ---
 
 # 스크립트 실행
