@@ -12,12 +12,15 @@ from typing import Dict
 # OpenSearch 클라이언트
 from opensearchpy.helpers import bulk
 from opensearchpy import OpenSearch
+from app.opensearch_client import os_client
+
 
 from app.services.parsing.ingest_to_os_from_xml import one_parse_xml
 
+from schemas.report import ReportListResponse, Report
+
 # 환경변수 설정
 from app.config import settings
-OS_HOST = settings.OS_HOST
 MY_API_BASE_URL = settings.MY_API_BASE_URL
 MY_API_CORE_REPORTS = settings.MY_API_CORE_REPORTS
 DART_API_KEY = settings.DART_API_KEY
@@ -26,37 +29,6 @@ DART_API_KEY = settings.DART_API_KEY
 
 
 
-# OpenSearch 접속 정보
-os_client = OpenSearch(
-    hosts=OS_HOST,# OpenSearch 노드 URL
-    http_compress=True,
-    retry_on_timeout=True,
-    max_retries=3,
-    request_timeout=60,
-)
-
-
-# 개별 보고서에 대한 모델
-class Report(BaseModel):
-    rm: str
-    corp_code: str
-    corp_name: str
-    stock_code: Optional[str] = Field(None)  # stock_code는 없을 수도 있으므로 Optional
-    corp_cls: str
-    report_nm: str
-    rcept_no: str
-    flr_nm: str
-    rcept_dt: str
-
-# 전체 응답 구조에 대한 모델
-class ReportListResponse(BaseModel):
-    status: str
-    message: str
-    list: List[Report] = Field(..., alias="list")
-    page_no: conint(ge=1)  # 1 이상의 정수
-    page_count: int
-    total_count: int
-    total_page: int
 
 # 내 기업코드로 api에서 보고서 리스트 가져오기(json형태 안에 있음)
 def fetch_report_data_with_pydantic(code:str): # 테스트용 "01571107"
