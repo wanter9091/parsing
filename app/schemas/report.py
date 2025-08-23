@@ -1,3 +1,8 @@
+
+from typing import List, Optional
+from pydantic import BaseModel, Field, conint
+
+
 # 개별 보고서에 대한 모델
 class Report(BaseModel):
     rm: str

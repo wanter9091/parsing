@@ -1,10 +1,15 @@
 from opensearchpy import OpenSearch
 from .config import settings
 
-# 보안 비활성화를 위해 verify_certs=False 사용 가능
-client = OpenSearch(
-    hosts=[{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}],
-    http_auth=(settings.OPENSEARCH_USER, settings.OPENSEARCH_PASSWORD),
-    scheme=settings.OPENSEARCH_SCHEME,
-    verify_certs=False
+# 환경변수 설정
+from app.config import settings
+OS_HOST = settings.OS_HOST
+
+# OpenSearch 접속 정보
+os_client = OpenSearch(
+    hosts=OS_HOST,# OpenSearch 노드 URL
+    http_compress=True,
+    retry_on_timeout=True,
+    max_retries=3,
+    request_timeout=60,
 )

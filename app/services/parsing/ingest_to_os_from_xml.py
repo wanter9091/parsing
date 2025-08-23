@@ -6,17 +6,12 @@ from opensearchpy.helpers import bulk
 from .parse_xml import parse_darter_xml
 import codecs
 
+from app.opensearch_client import os_client
+
 from typing import Dict, Any, Generator
 
-# OpenSearch 접속 정보
-OS_HOSTS = ["http://localhost:9200"]  # OpenSearch 노드 URL
-os_client = OpenSearch(
-    hosts=OS_HOSTS,
-    http_compress=True,
-    retry_on_timeout=True,
-    max_retries=3,
-    request_timeout=60,
-)
+# 파싱 데이터 OpenSearch 인덱스 매핑 정의
+from app.models.parsing_schemas import INDEX_MAPPINGS
 
 DOC_CODE_INDEX_MAP = {
     "11013": "rpt_qt", # 분기보고서
@@ -28,178 +23,7 @@ DOC_CODE_INDEX_MAP = {
     "99999": "rpt_other",
 }
 
-INDEX_MAPPINGS = {
-    "rpt_qt": {
-        "settings": {
-            "analysis": {
-                "analyzer": {
-                    "my_html_strip_analyzer": {
-                        "char_filter": ["html_strip"],
-                        "tokenizer": "standard",
-                        "filter": ["lowercase"],
-                    }
-                }
-            }
-        },
-        "mappings": {
-            "properties": {
-                "doc_id": {"type": "keyword"},
-                "doc_name": {"type": "keyword"},
-                "doc_code": {"type": "keyword"},
-                "pub_date": {"type": "date", "format": "yyyyMMdd"},
-                "corp_code": {"type": "keyword"},
-                "corp_name": {"type": "keyword"},
-                "sections": {
-                    "type": "nested",
-                    "properties": {
-                        "sec_id": {"type": "keyword"},
-                        "sec_title": {"type": "text"},
-                        "sec_content": {
-                            "type": "text",
-                            "analyzer": "my_html_strip_analyzer",
-                        },
-                    },
-                },
-            }
-        },
-    },
-    "rpt_half": {
-        "settings": {
-            "analysis": {
-                "analyzer": {
-                    "my_html_strip_analyzer": {
-                        "char_filter": ["html_strip"],
-                        "tokenizer": "standard",
-                        "filter": ["lowercase"],
-                    }
-                }
-            }
-        },
-        "mappings": {
-            "properties": {
-                "doc_id": {"type": "keyword"},
-                "doc_name": {"type": "keyword"},
-                "doc_code": {"type": "keyword"},
-                "pub_date": {"type": "date", "format": "yyyyMMdd"},
-                "corp_code": {"type": "keyword"},
-                "corp_name": {"type": "keyword"},
-                "sections": {
-                    "type": "nested",
-                    "properties": {
-                        "sec_id": {"type": "keyword"},
-                        "sec_title": {"type": "text"},
-                        "sec_content": {
-                            "type": "text",
-                            "analyzer": "my_html_strip_analyzer",
-                        },
-                    },
-                },
-            }
-        },
-    },
-    "rpt_biz": {
-        "settings": {
-            "analysis": {
-                "analyzer": {
-                    "my_html_strip_analyzer": {
-                        "char_filter": ["html_strip"],
-                        "tokenizer": "standard",
-                        "filter": ["lowercase"],
-                    }
-                }
-            }
-        },
-        "mappings": {
-            "properties": {
-                "doc_id": {"type": "keyword"},
-                "doc_name": {"type": "keyword"},
-                "doc_code": {"type": "keyword"},
-                "pub_date": {"type": "date", "format": "yyyyMMdd"},
-                "corp_code": {"type": "keyword"},
-                "corp_name": {"type": "keyword"},
-                "sections": {
-                    "type": "nested",
-                    "properties": {
-                        "sec_id": {"type": "keyword"},
-                        "sec_title": {"type": "text"},
-                        "sec_content": {
-                            "type": "text",
-                            "analyzer": "my_html_strip_analyzer",
-                        },
-                    },
-                },
-            }
-        },
-    },
-    "rpt_sec_eq": {
-        "settings": {
-            "analysis": {
-                "analyzer": {
-                    "my_html_strip_analyzer": {
-                        "char_filter": ["html_strip"],
-                        "tokenizer": "standard",
-                        "filter": ["lowercase"],
-                    }
-                }
-            }
-        },
-        "mappings": {
-            "properties": {
-                "doc_id": {"type": "keyword"},
-                "doc_name": {"type": "keyword"},
-                "doc_code": {"type": "keyword"},
-                "pub_date": {"type": "date", "format": "yyyyMMdd"},
-                "corp_code": {"type": "keyword"},
-                "corp_name": {"type": "keyword"},
-                "sections": {
-                    "type": "nested",
-                    "properties": {
-                        "sec_id": {"type": "keyword"},
-                        "sec_title": {"type": "text"},
-                        "sec_content": {
-                            "type": "text",
-                            "analyzer": "my_html_strip_analyzer",
-                        },
-                    },
-                },
-            }
-        },
-    },
-    "rpt_other": {
-        "settings": {
-            "analysis": {
-                "analyzer": {
-                    "my_html_strip_analyzer": {
-                        "char_filter": ["html_strip"],
-                        "tokenizer": "standard",
-                        "filter": ["lowercase"],
-                    }
-                }
-            }
-        },
-        "mappings": {
-            "properties": {
-                "doc_id": {"type": "keyword"},
-                "doc_name": {"type": "keyword"},
-                "doc_code": {"type": "keyword"},
-                "pub_date": {"type": "date", "format": "yyyyMMdd"},
-                "corp_code": {"type": "keyword"},
-                "corp_name": {"type": "keyword"},
-                "sections": {
-                    "type": "nested",
-                    "properties": {
-                        "sec_id": {"type": "keyword"},
-                        "sec_title": {"type": "text"},
-                        "sec_content": {
-                            "type": "text",
-                            "analyzer": "my_html_strip_analyzer",
-                        },
-                    },
-                },
-            }
-        },
-    },
-}
+
 
 def create_indices():
     """사전 정의 인덱스 생성(있으면 skip)"""

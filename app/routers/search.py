@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.services.dart_service import test_service
-from ..opensearch_client import client
+from ..opensearch_client import os_client as client
 
 router = APIRouter()
 

@@ -17,7 +17,7 @@ from app.opensearch_client import os_client
 
 from app.services.parsing.ingest_to_os_from_xml import one_parse_xml
 
-from schemas.report import ReportListResponse, Report
+from app.schemas.report import ReportListResponse
 
 # 환경변수 설정
 from app.config import settings
